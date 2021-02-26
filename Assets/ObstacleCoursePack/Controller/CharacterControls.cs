@@ -15,7 +15,7 @@ public class CharacterControls : MonoBehaviour {
 	public float rotateSpeed = 25f; //Speed the player rotate
 	private Vector3 moveDir;
 	public GameObject cam;
-	private Rigidbody rb; //ref of Rigitbody
+	private Rigidbody rb; //ref of Rigidbody
 
 	private float distToGround;
 
@@ -28,7 +28,11 @@ public class CharacterControls : MonoBehaviour {
 	public Vector3 checkPoint;
 	private bool slide = false;
 
-	void  Start (){ //called after all objects Awake() have finished.
+    private bool m_Dead = false;
+    public float m_KillY = -20;
+    public Vector3 m_PositionRespawn = new Vector3(10, 1, 10);
+
+    void  Start (){ //called after all objects Awake() have finished.
 		// get the distance to ground
 		distToGround = GetComponent<Collider>().bounds.extents.y; //The world space bounding volume of the collider (Read Only).
 	}
@@ -39,7 +43,8 @@ public class CharacterControls : MonoBehaviour {
 	
 	void Awake ()
 	{ //Awake is called when the script instance is being loaded. 
-		rb = GetComponent<Rigidbody>();
+
+        rb = GetComponent<Rigidbody>();
 		rb.freezeRotation = true;
 		rb.useGravity = false;
 
@@ -48,7 +53,12 @@ public class CharacterControls : MonoBehaviour {
 	}
 	
 	void FixedUpdate () {
-		if (canMove) //If player is not hit
+        if (IsDead())
+        {
+            OnDead();
+        }
+
+        if (canMove) //If player is not hit
 		{
 			if (moveDir.x != 0 || moveDir.z != 0)
 			{
@@ -65,19 +75,20 @@ public class CharacterControls : MonoBehaviour {
 
 			if (IsGrounded())
 			{
-			 // Calculate how fast we should be moving
+				// Calculate how fast we should be moving
 				Vector3 targetVelocity = moveDir;
 				targetVelocity *= speed;
 
 				// Apply a force that attempts to reach our target velocity
+				//This is the core difference between a controller and a ragdoll
 				Vector3 velocity = rb.velocity;
-				if (targetVelocity.magnitude < velocity.magnitude) //If I'm slowing down the character
-				{
-					targetVelocity = velocity;
-					rb.velocity /= 1.1f; //reduce the current velocity magnitude minus than target direction's velocity magnitude first, then add different direction's force. 
-										 //It may figure out Over-frequent changing moving direction problem
-				}
-				Vector3 velocityChange = (targetVelocity - velocity);
+                if (targetVelocity.magnitude < velocity.magnitude) //If I'm slowing down the character
+                {
+                    targetVelocity = velocity;
+                    rb.velocity /= 1.1f; //reduce the current velocity magnitude to less than target direction's velocity magnitude first, then add different direction's force. 
+                                         //It may figure out Over-frequent changing moving direction problem
+                }
+                Vector3 velocityChange = (targetVelocity - velocity);
 				velocityChange.x = Mathf.Clamp(velocityChange.x, -maxVelocityChange, maxVelocityChange);
 				velocityChange.z = Mathf.Clamp(velocityChange.z, -maxVelocityChange, maxVelocityChange);
 				velocityChange.y = 0;
@@ -200,4 +211,26 @@ public class CharacterControls : MonoBehaviour {
 			canMove = true;
 		}
 	}
+
+    private bool IsDead()
+    {
+        float y = transform.position.y;
+        if (y < m_KillY)
+        {
+            m_Dead = true;
+            return m_Dead;
+        }
+        return false;
+    }
+
+    private void OnDead()
+    {
+        Respawn();
+    }
+
+    private void Respawn()
+    {
+        GetComponent<Transform>().position = m_PositionRespawn;
+        m_Dead = false;
+    }
 }
